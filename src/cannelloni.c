@@ -118,7 +118,9 @@ static int print_usage(int error_code) {
 		"  -2              -- Use double buffered FX2 fifo.\n"
 		"  -s              -- Run in sync slave fifo mode (default)\n"
 		"  -a              -- Run in async slave fifo mode.\n"
-		"  -b N            -- Set IO buffer size to N bytes (default 16384), even from 2 to 2^31 -1.\n"
+		"  -b N            -- Set IO buffer size to N bytes (default 16384), from 2 to 2^31 -1.\n"
+		"  Note: if using 16 bit bus (option -w), N must be even.\n"
+		"  -u              -- Use variable transfer block size (see README.md)\n"
 		"  -n M            -- Stop after M bytes, M being a number from 2 to 2^64 - 1.\n"
 		"  Note: M, if specified, must be divisible by N to avoid potential buffer overflow errors.\n"
 		"  -c [x|30[o]|48[o]][i] -- Specify interface clock:\n"
@@ -282,6 +284,7 @@ int main(int argc, char*argv[])
 
 	int block_size = 16384;
 	unsigned int bSize = 0;
+	unsigned char use_variable_block_size = 0;
 	unsigned char *transfer_buffer;
 	char limit_transfer = 0;
 	uint64_t num_bytes_limit = 0;
@@ -395,6 +398,10 @@ int main(int argc, char*argv[])
 			block_size = bSize;
 			break;
 
+		case 'u':
+			use_variable_block_size = 1;
+			break;
+
 		case 'n':
 			limit_transfer = 1;
 			if (sscanf(optarg, "%"PRIu64, &num_bytes_limit) != 1 || num_bytes_limit < 2 || num_bytes_limit & 1) {
@@ -466,8 +473,23 @@ int main(int argc, char*argv[])
 		return print_usage(-1);
 	}
 
-	if ( num_bytes_limit % block_size != 0 ) {
-		logerror("Number of bytes to transfer must be divisible by buffer size.\n");
+	if ( use_variable_block_size ) {
+		if ( direction_in ) {
+			logerror("Option '-u' can only be used with output direction, please specify '-o'.\n");
+			return print_usage(-1);
+		}
+		if ( disable_in_out ) {
+			logerror("Option '-u' cannot be used together with '-0' option.\n");
+			return print_usage(-1);
+		}
+	}
+	else if ( num_bytes_limit % block_size != 0 ) {
+		logerror("Number of bytes to transfer (option '-b') must be divisible by buffer size (option -n)\n");
+		return print_usage(-1);
+	}
+
+	if (!use_8bit_bus && (block_size & 1)) {
+		logerror("When using 16-bit wide bus (option '-w'), block size (option '-b') must be even.\n");
 		return print_usage(-1);
 	}
 
@@ -743,7 +765,36 @@ int main(int argc, char*argv[])
 	// Data transfer loop
 	while (!do_terminate) {
 
-		num_bytes_to_transfer = block_size;
+		if ( ! use_variable_block_size ) num_bytes_to_transfer = block_size;
+		else {
+
+			// Using variable block size. Read the 4-byte word containing size of next block in bytes.
+			if (fread(transfer_buffer, 4, 1, stdin) != 1) {
+				if (!feof(stdin)) logerror("Error reading block data size 4-byte word from stdin. Stopping.\n");
+				else if (verbose) logerror("stdin has reached EOF. Stopping.\n");
+				do_terminate = 1;
+				break;
+			}
+			if (do_terminate) break;
+
+			num_bytes_to_transfer =
+			(((uint64_t)transfer_buffer[ 3 ]) << 24) |
+			(((uint64_t)transfer_buffer[ 2 ]) << 16) |
+			(((uint64_t)transfer_buffer[ 1 ]) << 8) |
+			((uint64_t)transfer_buffer[ 0 ]);
+
+			if (!use_8bit_bus && (num_bytes_to_transfer & 1)) {
+				logerror("Error: Received next block size number of bytes (%d) is odd, but 16-bit bus is enabled.\n", num_bytes_to_transfer);
+				do_terminate = 1;
+				break;
+			}
+			if (num_bytes_to_transfer > block_size) {
+				logerror("Error: Received next block size number of bytes (%d) is greater than blockSize (%d), specified with option '-b'\n", num_bytes_to_transfer, block_size);
+				do_terminate = 1;
+				break;
+			}
+		}
+
 		if (limit_transfer && num_bytes_to_transfer >= total_bytes_left_to_transfer ) {
 			num_bytes_to_transfer = total_bytes_left_to_transfer;
 			do_terminate = 1;

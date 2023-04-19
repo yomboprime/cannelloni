@@ -58,7 +58,9 @@ Usage: cannelloni -f <path> [more options]
   -2              -- Use double buffered FX2 fifo.
   -s              -- Run in sync slave fifo mode (default)
   -a              -- Run in async slave fifo mode.
-  -b N            -- Set IO buffer size to N bytes (default 16384), even from 2 to 2^31 -1.
+  -b N            -- Set IO buffer size to N bytes (default 16384), from 2 to 2^31 -1.
+  Note: if using 16 bit bus (option -w), N must be even.\n
+  -u              -- Use variable transfer block size
   -n M            -- Stop after M bytes, M being a number from 2 to 2^64 - 1.
   Note: M, if specified, must be divisible by N to avoid potential buffer overflow errors.
   -c [x|30[o]|48[o]][i] -- Specify interface clock:
@@ -117,6 +119,12 @@ Most program arguments are different from fx2pipe, though some are the same.
 - New option ```-j```: Invert polarity of 'SLOE' input pin (i.e. assert high)
 - New option ```-k```: Invert polarity of 'PKTEND' input flag pin (i.e. assert high)
 - Flag options (the ones without values) can be shortened together; i.e., ```-o -0 -w``` can be shortened to ```-o0w```
+
+## Variable block size protocol
+
+If ```-u``` is given as argument (only for output), the block size to be transferred is no longer constant. Instead, first a 32 bit word is transferred, which contains the number of bytes of the next data block to be output (1 to 2^32-1, "0" is reserved). That is, each block is preceded by a word that tells its size.
+
+The next block size (in bytes) must not exceed the block limit specified by ```-b``` option (or its default value), in bytes.
 
 ## Not implemented
 
