@@ -473,17 +473,17 @@ int main(int argc, char*argv[])
 		return print_usage(-1);
 	}
 
-	if ( use_variable_block_size ) {
-		if ( direction_in ) {
+	if (use_variable_block_size) {
+		if (direction_in) {
 			logerror("Option '-u' can only be used with output direction, please specify '-o'.\n");
 			return print_usage(-1);
 		}
-		if ( disable_in_out ) {
+		if (disable_in_out) {
 			logerror("Option '-u' cannot be used together with '-0' option.\n");
 			return print_usage(-1);
 		}
 	}
-	else if ( num_bytes_limit % block_size != 0 ) {
+	else if (num_bytes_limit % block_size != 0) {
 		logerror("Number of bytes to transfer (option '-b') must be divisible by buffer size (option -n)\n");
 		return print_usage(-1);
 	}
@@ -765,7 +765,7 @@ int main(int argc, char*argv[])
 	// Data transfer loop
 	while (!do_terminate) {
 
-		if ( ! use_variable_block_size ) num_bytes_to_transfer = block_size;
+		if (!use_variable_block_size) num_bytes_to_transfer = block_size;
 		else {
 
 			// Using variable block size. Read the 4-byte word containing size of next block in bytes.
