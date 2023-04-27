@@ -454,7 +454,6 @@ static bool do_stream(libusb_device_handle *handle, bool direction_in, size_t bl
 	bool disable_in_out, unsigned int timeout)
 {
 	int status;
-	uint64_t total_bytes_transferred;
 	bool ret = false;
 	struct timeval usb_timeout;
 
@@ -574,10 +573,10 @@ static bool do_stream(libusb_device_handle *handle, bool direction_in, size_t bl
 		const float delta_time = (time1 - time0) * 1e-9f;
 
 		// MiB/s
-		const float speed = total_bytes_transferred / (delta_time * 1024.f * 1024.f);
+		const float speed = state.total_bytes_transferred / (delta_time * 1024.f * 1024.f);
 
 		fprintf(stderr, "Transferred %"PRIu64" bytes in %.2f seconds (%.2f MiB/s)\n",
-			total_bytes_transferred, delta_time, speed);
+			state.total_bytes_transferred, delta_time, speed);
 
 	}
 
