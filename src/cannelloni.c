@@ -359,6 +359,11 @@ static void transfer_complete(struct libusb_transfer *transfer)
 
 	state->total_bytes_transferred += transfer->actual_length;
 
+	if (!state->total_bytes_left_to_transfer) {
+		free_transfer(transfer);
+		return;
+	}
+
 	if (!state->direction_in)
 		transfer->length = prepare_out_buffer(state, transfer->buffer);
 
@@ -367,6 +372,8 @@ static void transfer_complete(struct libusb_transfer *transfer)
 		free_transfer(transfer);
 		abort_transfers(state);
 	}
+
+	if (state->total_bytes_left_to_transfer != UNLIMITED) state->total_bytes_left_to_transfer -= transfer->length;
 }
 
 static struct libusb_transfer* submit_transfer(struct cannelloni_state *state, int timeout)
@@ -398,7 +405,7 @@ static struct libusb_transfer* submit_transfer(struct cannelloni_state *state, i
 		goto submit_transfer_failed;
 	}
 
-	state->total_bytes_left_to_transfer -= num_bytes_to_transfer;
+	if ( state->total_bytes_left_to_transfer != UNLIMITED) state->total_bytes_left_to_transfer -= num_bytes_to_transfer;
 	state->submitted_transfers++;
 
 	return transfer;
