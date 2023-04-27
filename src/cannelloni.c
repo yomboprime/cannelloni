@@ -940,7 +940,7 @@ int main(int argc, char*argv[])
 					}
 					if (j < ARRAYSIZE(known_device)) {
 						if (verbose)
-							logerror("found device '%s' [%04x:%04x] (%d,%d)\n",
+							logerror("Found device '%s' [%04x:%04x] (%d,%d)\n",
 										known_device[j].designation, vid, pid, busnum, devaddr);
 							break;
 					}
@@ -979,13 +979,13 @@ int main(int argc, char*argv[])
 	}
 
 	if (verbose)
-		logerror("microcontroller type: %s\n", fx_name[fx_type]);
+		logerror("Microcontroller type: %s\n", fx_name[fx_type]);
 
 	// Program the firmware in the microcontroller
 	if (!loader_path) {
 		// Single stage, put into internal memory
 		if (verbose > 1)
-			logerror("single stage: load on-chip memory\n");
+			logerror("Single stage: load on-chip memory\n");
 		status = load_image(device, firmware_path, fx_type, 0, pre_reset_callback);
 	} else {
 		// two-stage, put loader into external memory
