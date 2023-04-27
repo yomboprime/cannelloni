@@ -256,7 +256,9 @@ static void pre_reset_callback(libusb_device_handle *device)
 
 static int get_image_type(const char *path)
 {
-	const char *const ext = path + strlen(path) - 4;
+	size_t path_length = strlen(path);
+	if (path_length < 4) return IMG_TYPE_UNDEFINED;
+	const char *const ext = path + path_length - 4;
 	if ((_stricmp(ext, ".hex") == 0) || (strcmp(ext, ".ihx") == 0))
 		return IMG_TYPE_HEX;
 	else if (_stricmp(ext, ".iic") == 0)
