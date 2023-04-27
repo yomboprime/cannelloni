@@ -256,7 +256,9 @@ static void pre_reset_callback(libusb_device_handle *device)
 
 static int get_image_type(const char *path)
 {
-	const char *const ext = path + strlen(path) - 4;
+	size_t path_length = strlen(path);
+	if (path_length < 4) return IMG_TYPE_UNDEFINED;
+	const char *const ext = path + path_length - 4;
 	if ((_stricmp(ext, ".hex") == 0) || (strcmp(ext, ".ihx") == 0))
 		return IMG_TYPE_HEX;
 	else if (_stricmp(ext, ".iic") == 0)
@@ -359,6 +361,11 @@ static void transfer_complete(struct libusb_transfer *transfer)
 
 	state->total_bytes_transferred += transfer->actual_length;
 
+	if (!state->total_bytes_left_to_transfer) {
+		free_transfer(transfer);
+		return;
+	}
+
 	if (!state->direction_in)
 		transfer->length = prepare_out_buffer(state, transfer->buffer);
 
@@ -367,6 +374,8 @@ static void transfer_complete(struct libusb_transfer *transfer)
 		free_transfer(transfer);
 		abort_transfers(state);
 	}
+
+	if (state->total_bytes_left_to_transfer != UNLIMITED) state->total_bytes_left_to_transfer -= transfer->length;
 }
 
 static struct libusb_transfer* submit_transfer(struct cannelloni_state *state, int timeout)
@@ -398,7 +407,7 @@ static struct libusb_transfer* submit_transfer(struct cannelloni_state *state, i
 		goto submit_transfer_failed;
 	}
 
-	state->total_bytes_left_to_transfer -= num_bytes_to_transfer;
+	if ( state->total_bytes_left_to_transfer != UNLIMITED) state->total_bytes_left_to_transfer -= num_bytes_to_transfer;
 	state->submitted_transfers++;
 
 	return transfer;
@@ -447,7 +456,6 @@ static bool do_stream(libusb_device_handle *handle, bool direction_in, size_t bl
 	bool disable_in_out, unsigned int timeout)
 {
 	int status;
-	uint64_t total_bytes_transferred;
 	bool ret = false;
 	struct timeval usb_timeout;
 
@@ -567,10 +575,10 @@ static bool do_stream(libusb_device_handle *handle, bool direction_in, size_t bl
 		const float delta_time = (time1 - time0) * 1e-9f;
 
 		// MiB/s
-		const float speed = total_bytes_transferred / (delta_time * 1024.f * 1024.f);
+		const float speed = state.total_bytes_transferred / (delta_time * 1024.f * 1024.f);
 
 		fprintf(stderr, "Transferred %"PRIu64" bytes in %.2f seconds (%.2f MiB/s)\n",
-			total_bytes_transferred, delta_time, speed);
+			state.total_bytes_transferred, delta_time, speed);
 
 	}
 
