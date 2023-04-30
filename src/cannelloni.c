@@ -473,6 +473,9 @@ static bool do_stream(libusb_device_handle *handle, bool direction_in, size_t bl
 		.empty_transfer_count = 0
 	};
 
+	// Set auto-detach of kernel driver
+	libusb_set_auto_detach_kernel_driver(handle, 1);
+
 	// Claim interface 0 again
 	status = libusb_claim_interface(handle, 0);
 	if (status != LIBUSB_SUCCESS) {
